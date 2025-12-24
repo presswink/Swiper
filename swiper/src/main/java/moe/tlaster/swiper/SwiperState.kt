@@ -117,7 +117,7 @@ class SwiperState(
 
     private suspend fun restore() {
         onEnd.invoke()
-        _offset.animateTo(0f)
+        _offset.animateTo(1f)
         dismissed = false
     }
 
