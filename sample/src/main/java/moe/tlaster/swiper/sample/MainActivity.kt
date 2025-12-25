@@ -3,9 +3,12 @@ package moe.tlaster.swiper.sample
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.Button
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
@@ -15,7 +18,9 @@ import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -29,9 +34,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import moe.tlaster.swiper.Direction
 import moe.tlaster.swiper.Swiper
+import moe.tlaster.swiper.SwiperState
 import moe.tlaster.swiper.rememberSwiperState
+import java.util.UUID
 
 class MainActivity : ComponentActivity() {
+    @OptIn(ExperimentalFoundationApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -40,66 +48,53 @@ class MainActivity : ComponentActivity() {
                   Surface (
                       modifier = Modifier.padding(it)
                   ){
-                      var show by remember { mutableStateOf(false) }
                       Column(
                           modifier = Modifier.fillMaxSize(),
-                          horizontalAlignment = Alignment.CenterHorizontally,
                           verticalArrangement = Arrangement.Center,
+                          horizontalAlignment = Alignment.CenterHorizontally
+
                       ) {
-                          Button(onClick = { show = true }) {
-                              Text(text = "ClickMe")
-                          }
-                          Text(text = "show: $show")
-                      }
-                      if (show) {
-                          val state = rememberSwiperState(
-                              onDismiss = {
-                                  show = false
-                              }
-                          )
-                          Box(
-                              modifier = Modifier
-                                  .fillMaxSize()
-                                  .background(Color.Black.copy(alpha = 1 - state.progress))
-                                  .alpha(1 - state.progress),
+                          val pages = remember { mutableStateListOf<String>() }
+                          val pagerState = rememberPagerState(0) {pages.size}
+                          HorizontalPager(
+                              pagerState,
+                              modifier = Modifier.fillMaxWidth().fillMaxHeight(.7f),
+                              contentPadding = PaddingValues(horizontal = 100.dp),
+                              pageSpacing = 10.dp,
                           ) {
+                              index ->
                               Swiper(
-                                  state = state,
-                                  orientation = Orientation.Horizontal,
-                                  direction = Direction.Left
-                              ) {
-                                  Box(
-                                      modifier = Modifier
-                                          .fillMaxWidth()
-                                          .height(400.dp)
-                                          .background(Color.Gray)
-                                  ){
-                                      Column (
-                                          modifier = Modifier.fillMaxSize(),
-                                          verticalArrangement = Arrangement.Bottom,
-                                          horizontalAlignment = Alignment.CenterHorizontally
-                                      ){
-                                          Row(
-                                              modifier = Modifier.fillMaxWidth(),
-                                              verticalAlignment = Alignment.CenterVertically,
-                                              horizontalArrangement = Arrangement.Center
-                                          ) {
-                                              val scope = rememberCoroutineScope()
-                                              IconButton(
-                                                  onClick = {
-                                                      scope.launch(Dispatchers.Default){
-                                                          state.dismissIt()
-                                                      }
-                                              }) {
-                                                  Icon(
-                                                      imageVector = Icons.Default.Close,
-                                                      contentDescription = "Close it",
-                                                      tint = Color.White
-                                                  )
-                                              }
-                                          }
+                                  enabled = true,
+                                  direction = Direction.Up,
+                                  orientation = Orientation.Vertical,
+                                  dismissHeight = .5f,
+                                  state = rememberSwiperState (key = UUID.randomUUID().toString(),
+                                      onDismiss = {
+                                          pages.remove(index.toString())
                                       }
+                                  )
+                              ) {
+                                  Surface(
+                                      modifier = Modifier.fillMaxSize(),
+                                      color = Color.Gray
+                                  ) {
+                                     Column {
+                                         Text(if(pages.isNotEmpty()) "page" else "No Pages", color = Color.White )
+                                         Button(onClick = {
+                                             pages.remove(pages.size.toString())
+                                         }) {
+                                             Text("Delete")
+                                         }
+                                     }
                                   }
+                              }
+                          }
+
+                          Row {
+                              Button(onClick = {
+                                  pages.add(pages.size.toString())
+                              }) {
+                                  Text("Add New ")
                               }
                           }
                       }
