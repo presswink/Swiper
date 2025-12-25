@@ -12,7 +12,7 @@ maven { url 'https://jitpack.io' }
 ```
 Add the dependency
 ```
-implementation ("com.github.presswink:Swiper:0.8.3")
+implementation ("com.github.presswink:Swiper:0.9.0")
 ```
 Example
 ```kotlin
