@@ -6,10 +6,8 @@ import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
@@ -24,35 +22,36 @@ fun Swiper(
     animDurationMillis: Int = 500,
     content: @Composable () -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
     BoxWithConstraints(
         modifier = modifier,
     ) {
         LaunchedEffect(constraints.maxHeight) {
             state.maxHeight = constraints.maxHeight
+        }
+        // These run only when their specific parameters change
+        LaunchedEffect(direction) {
             state.direction = direction
+        }
+        LaunchedEffect(dismissHeight) {
             state.dismissHeight = dismissHeight
+        }
+        LaunchedEffect(animDurationMillis) {
             state.animDuration = animDurationMillis
         }
+
         Layout(
             modifier = Modifier.draggable(
                 orientation = orientation,
                 enabled = enabled && !state.dismissed,
                 reverseDirection = reverseDirection,
                 onDragStopped = { velocity ->
-                    scope.launch {
-                        state.fling(velocity)
-                    }
+                    state.fling(velocity)
                 },
                 onDragStarted = {
                     state.onStart.invoke()
                 },
                 state = DraggableState { dy ->
-                    scope.launch {
-                        with(state) {
-                            snap(offset + dy)
-                        }
-                    }
+                    state.snap(state.offset + dy)
                 },
             ),
             content = content,
