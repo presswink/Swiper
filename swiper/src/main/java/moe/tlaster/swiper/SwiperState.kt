@@ -6,11 +6,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import kotlin.math.abs
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 import kotlin.math.withSign
 
@@ -19,16 +21,20 @@ fun rememberSwiperState(
     onStart: () -> Unit = {},
     onDismiss: () -> Unit = {},
     onEnd: () -> Unit = {},
+    key: String? = null
 ): SwiperState {
+   val scope = rememberCoroutineScope()
     return rememberSaveable(
+        key = key,
         saver = SwiperState.Saver(
-            onStart, onDismiss, onEnd
+            onStart, onDismiss, onEnd, scope
         )
     ) {
         SwiperState(
             onStart = onStart,
             onDismiss = onDismiss,
             onEnd = onEnd,
+            scope= scope
         )
     }
 }
@@ -39,6 +45,7 @@ class SwiperState(
     internal val onDismiss: () -> Unit = {},
     internal val onEnd: () -> Unit = {},
     initialOffset: Float = 0f,
+    val scope: CoroutineScope,
 ) {
     internal var maxHeight: Int = 0
         set(value) {
@@ -54,14 +61,10 @@ class SwiperState(
     val offset: Float
         get() = _offset.value
 
-    val progress: Float
-        get() = (offset.absoluteValue / (if (maxHeight == 0) 1 else maxHeight)).coerceIn(
-            maximumValue = 1f,
-            minimumValue = 0f
-        )
-
-    internal suspend fun snap(value: Float) {
-        _offset.snapTo(value)
+    internal fun snap(value: Float) {
+        scope.launch {
+            _offset.snapTo(value)
+        }
     }
 
     internal var direction: Direction = Direction.Up
@@ -82,10 +85,10 @@ class SwiperState(
             field = value
         }
 
-    internal suspend fun fling(velocity: Float) {
+    internal fun fling(velocity: Float) {
         val value = _offset.value
-        val calcCurrentHeight =  abs(value) / 1000
-        if(velocity.absoluteValue >= 0.0f && calcCurrentHeight > dismissHeight){
+        val progress = (value.absoluteValue / maxHeight).coerceIn(0f, 1f)
+        if(progress > dismissHeight){
             when {
                 _direction == Direction.Up && value < 0.0 -> {
                     dismiss(velocity)
@@ -108,35 +111,39 @@ class SwiperState(
         }
     }
 
-    private suspend fun dismiss(velocity: Float) {
+    private fun dismiss(velocity: Float) {
         dismissed = true
-        _offset.animateTo(maxHeight.toFloat().withSign(_offset.value), initialVelocity = velocity)
+        scope.launch {
+            _offset.animateTo(maxHeight.toFloat().withSign(_offset.value), initialVelocity = velocity)
+        }
+        restore()
+        onDismiss.invoke()
+    }
+
+    private fun restore() {
+        onEnd.invoke()
+        scope.launch {
+            _offset.animateTo(0f)
+        }
+        dismissed = false
+    }
+
+    private fun clickToDismiss(){
+        dismissed = true
+        val targetValue = when (_direction) {
+            Direction.Down, Direction.Right -> maxHeight.toFloat()
+            Direction.Up, Direction.Left -> -maxHeight.toFloat()
+        }
+        scope.launch {
+            _offset.animateTo(targetValue, animationSpec = tween(_animDuration))
+        }
         onDismiss.invoke()
         restore()
     }
 
-    private suspend fun restore() {
-        onEnd.invoke()
-        _offset.animateTo(1f)
-        dismissed = false
-    }
-
-    private suspend fun clickToDismiss(){
-        dismissed = true
-        when (_direction) {
-            Direction.Right, Direction.Up -> {
-                _offset.animateTo(( - maxHeight.toFloat()), initialVelocity = 0.0f, animationSpec = tween(_animDuration))
-                onDismiss.invoke()
-            }
-            Direction.Left, Direction.Down -> {
-                _offset.animateTo(maxHeight.toFloat(), initialVelocity = 0.0f, animationSpec = tween(_animDuration))
-                onDismiss.invoke()
-            }
-        }
-        restore()
-    }
-    suspend fun dismissIt(){
-       clickToDismiss()
+    @Suppress("unused")
+    fun dismissIt(){
+        clickToDismiss()
     }
 
     companion object {
@@ -144,6 +151,7 @@ class SwiperState(
             onStart: () -> Unit = {},
             onDismiss: () -> Unit = {},
             onEnd: () -> Unit = {},
+            scope: CoroutineScope,
         ): Saver<SwiperState, *> = listSaver(
             save = {
                 listOf(
@@ -155,7 +163,8 @@ class SwiperState(
                     onStart = onStart,
                     onDismiss = onDismiss,
                     onEnd = onEnd,
-                    initialOffset = it[0]
+                    initialOffset = it[0],
+                    scope = scope
                 )
             }
         )

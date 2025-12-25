@@ -1,12 +1,12 @@
 buildscript {
-    val compose_version by extra("1.5.0")
-    val compose_compiler_version by extra("1.5.1")
+    val composeVersion by extra("1.5.0")
+    val composeCompilerVersion by extra("1.5.1")
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath("com.android.tools.build:gradle:8.3.0")
+        classpath("com.android.tools.build:gradle:8.13.2")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0")
     }
 }
